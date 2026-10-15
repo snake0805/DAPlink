@@ -42,40 +42,38 @@ COMPILER_ASSERT( DAPLINK_HIC_ID == DAPLINK_HIC_ID_STM32F103XB );
 #define CONNECTED_LED_PIN_Bit 13
 
 // When bootloader, disable the target port(not used)
-// 【MyDAPLink】POWER_EN 由复现包的 PB15 迁到 PB9（PB15 空出，PB 口左侧留一组连续脚）
+// 【MyDAPLink】POWER_EN 选用 PB9 —— 与 SWCLK/SWDIO/nRESET 连成一块，便于 4P 排线整体对插
 #define POWER_EN_PIN_PORT GPIOB
 #define POWER_EN_PIN      GPIO_PIN_9
 #define POWER_EN_Bit      9
 
 // ============================================================================
 //  【MyDAPLink_F103】SWD 目标接口引脚分配
-//  本版本刻意与 DAPLINK_F103_复现包（PB13/PB14/PB12/PB15）完全不同，
 //  选用连续的一块 PB6~PB9，便于用一条 4P 排线整体对插，接线更整齐。
 //
-//   功能        本版本     复现包    说明
-//   ----------  --------  --------  ------------------------------------------
-//   SWCLK       PB6       PB13      输出推挽，接目标 SWCLK
-//   SWDIO       PB7       PB14      单脚双向，接目标 SWDIO
-//   nRESET      PB8       PB12      开漏+上拉，接目标 NRST（可选）
-//   POWER_EN    PB9       PB15      目标供电使能（可选）
+//   功能        引脚      说明
+//   ----------  --------  ------------------------------------------
+//   SWCLK       PB6       输出推挽，接目标 SWCLK
+//   SWDIO       PB7       单脚双向，接目标 SWDIO
+//   nRESET      PB8       开漏+上拉，接目标 NRST（可选）
+//   POWER_EN    PB9       目标供电使能（可选）
 //
 //  选脚依据：PA0~PA3=UART、PA8=MCO、PA11~PA15=USB、PC13=板载 LED，
 //  其余 PB6~PB9 在本固件中完全空闲，且不落任何板载外设，无冲突。
 // ============================================================================
 
-// nRESET 输出：接目标板 NRST，开漏 + 内部上拉，低有效复位
-// 用 PB8 —— 空闲脚，无板载外设占用。
+// nRESET 输出：接目标板 NRST，开漏 + 内部上拉，低有效复位。
+// 用 PB8 —— 空闲脚，无板载外设占用，且紧邻 SWCLK(PB6)/SWDIO(PB7)，4P 排线可整体对插。
 //
-// 【踩坑记录（沿用自复现包的教训，勿踩）】：
-//1) PA15：与 USB_CONNECT_PIN 共用。gpio_init() 先把 PA15 配成推挽输出
-//    (USB 用)，随后又配成开漏+上拉 (nRESET 用)；而 USBD_Connect(FALSE)
-//    会用 USB_CONNECT_OFF() 把 PA15 强推挽拉低，DAP_reset() 读的
-//    DAP_config.h:399 ((nRESET_PIN_PORT->IDR >> nRESET_PIN_Bit) & 1)
-//    因此读到随机翻转电平，USB 状态机与复位逻辑互相打架，
-//    实测探针直接不枚举 (VID_0000&PID_0002 设备描述符请求失败)。
-// 2) PB0 ：标准 Blue Pill 的 PB0 接板载 LED1，开漏输出与 LED 及目标
-//    NRST 上拉打架，接目标即掉线 (D 盘消失 / CMSIS-DAP 找不到)。
-// PB8 无上述任何冲突。
+// nRESET 选脚时排除了两个"看起来也能用"的候选：
+//   PA15 —— 该脚已被 USB_CONNECT_PIN 占用。gpio_init() 会把它配成推挽输出，
+//           并由 USBD_Connect(FALSE) 经 USB_CONNECT_OFF() 拉低；这与 nRESET
+//           的开漏输出在电气上叠加。更麻烦的是取 NRST 状态的方式是直接读
+//           IDR 位，会把 USB 逻辑翻转出来的电平误判成目标复位线状态，
+//           两条逻辑互相干扰，容易导致 USB 枚举异常。故弃用。
+//   PB0  —— 标准 Blue Pill 的板载 LED1 就挂在 PB0，开漏输出会与板上 LED
+//           及目标端 NRST 上拉互相钳位，接上目标后链路容易掉。
+//   → PB8 均无上述问题。
 #define nRESET_PIN_PORT GPIOB
 #define nRESET_PIN      GPIO_PIN_8
 #define nRESET_PIN_Bit  8
