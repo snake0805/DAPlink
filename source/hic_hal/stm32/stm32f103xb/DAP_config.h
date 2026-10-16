@@ -324,6 +324,20 @@ Set the SWDIO/TMS DAP hardware I/O pin to high level.
 */
 __STATIC_FORCEINLINE void PIN_SWDIO_TMS_SET(void)
 {
+    // 【MyDAPLink】本板 SWDIO 是单脚双向（SWDIO_IN == SWDIO_OUT == PB7），
+    // 而 PORT_SWD_SETUP()/DAP_SETUP() 结尾会用 pin_in_init() 把该脚切成输入，
+    // 以配合"读 SWDIO 时释放总线"的语义。这就使得下面这种"只写 ODR、不改方向"
+    // 的写法在单脚方案下失效：脚还处于输入态，BSRR/BRR 只改影子寄存器，
+    // 引脚电平根本不变化。
+    // SWJ_Sequence()（swd_reset / swd_switch 的 JTAG→SWD 切换序列）正是用这组宏
+    // 逐位驱动 SWDIO 的，且**不会再调 pin_out_init**。切换序列里既有高电平也有
+    // 低电平，只靠输入上拉无法产生低电平，于是 JTAG2SWD() 失败、
+    // swd_init_debug() 失败，拖拽烧录报 "Failed to reset/halt the target MCU"。
+    // 官方板 SWDIO_OUT(PB14) 与 SWDIO_IN(PB12) 是两个独立脚，pin_in_init() 只影响
+    // 输入脚，输出脚始终是推挽输出，所以官方代码不会踩到这个坑。
+    // 修法：驱动前先确保本脚为推挽输出。SWD_Transfer 读周期会自行切成输入，
+    // 方向切换逻辑不受影响。
+    pin_out_init(SWDIO_OUT_PIN_PORT, SWDIO_OUT_PIN_Bit);
     SWDIO_OUT_PIN_PORT->BSRR = SWDIO_OUT_PIN;
 }
 
@@ -332,6 +346,9 @@ Set the SWDIO/TMS DAP hardware I/O pin to low level.
 */
 __STATIC_FORCEINLINE void PIN_SWDIO_TMS_CLR(void)
 {
+    // 【MyDAPLink】同 PIN_SWDIO_TMS_SET()：单脚 SWDIO 下必须先恢复推挽输出，
+    // 否则低电平写不出去。
+    pin_out_init(SWDIO_OUT_PIN_PORT, SWDIO_OUT_PIN_Bit);
     SWDIO_OUT_PIN_PORT->BRR = SWDIO_OUT_PIN;
 }
 
