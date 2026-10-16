@@ -70,7 +70,15 @@ This information includes:
 /// Default communication speed on the Debug Access Port for SWD and JTAG mode.
 /// Used to initialize the default SWD/JTAG clock frequency.
 /// The command \ref DAP_SWJ_Clock can be used to overwrite this default setting.
-#define DAP_DEFAULT_SWJ_CLOCK   5000000         ///< Default SWD/JTAG clock frequency in Hz.
+/// NOTE: 这里刻意把默认时钟从常规的 5 MHz 降到 100 kHz。
+///   这个默认值实际只影响「拖拽烧录(drag-n-drop)」路径：swd_init() 内部会调用
+///   DAP_Setup()，而后者每次都把时钟重置回本宏的值，所以上位机的降速设置
+///   不会保留到拖拽流程里。
+///   本板 SWD 走的是长杜邦线，实测 >=500 kHz 时 AP 访问失败（DPIDR 能读、AP 不通，
+///   OpenOCD 报 "Failed to read memory at 0xe000ed00"），拖拽会以
+///   "Failed to reset/halt the target MCU" 失败；250 kHz 及以下稳定。
+///   正常用 OpenOCD / pyOCD 调试时，上位机会自行下发 DAP_SWJ_Clock 覆盖本值，不受影响。
+#define DAP_DEFAULT_SWJ_CLOCK   100000          ///< Default SWD/JTAG clock frequency in Hz.
 
 /// Maximum Package Size for Command and Response data.
 /// This configuration settings is used to optimize the communication performance with the
