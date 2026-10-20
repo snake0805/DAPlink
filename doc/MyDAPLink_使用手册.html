@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MyDAPLink_F103 使用手册</title>
+<style>
+  :root{
+    --bg:#f7f8fa; --card:#ffffff; --ink:#1f2430; --sub:#5b6577;
+    --line:#e3e7ee; --brand:#1F4E79; --brand2:#2E74B5; --accent:#B03060;
+    --ok:#1a7f4b; --warn:#b06a00; --code-bg:#f2f4f8;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:"Microsoft YaHei","微软雅黑",-apple-system,Segoe UI,sans-serif;
+    line-height:1.75;font-size:15px}
+  .wrap{max-width:1040px;margin:0 auto;padding:32px 22px 80px}
+  header{background:linear-gradient(135deg,#1F4E79,#2E74B5);color:#fff;
+    border-radius:14px;padding:32px 34px;margin-bottom:26px}
+  header h1{margin:0 0 10px;font-size:27px;letter-spacing:.5px}
+  header p{margin:0;opacity:.92;font-size:14.5px}
+  header .tag{display:inline-block;margin-top:14px;background:rgba(255,255,255,.16);
+    border:1px solid rgba(255,255,255,.3);border-radius:20px;
+    padding:3px 12px;font-size:12px;margin-right:8px}
+  h2{color:var(--brand);font-size:20px;margin:38px 0 12px;
+    padding-left:12px;border-left:5px solid var(--brand2)}
+  h3{color:var(--brand2);font-size:16px;margin:24px 0 8px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;
+    padding:18px 20px;margin:14px 0;box-shadow:0 1px 3px rgba(20,40,80,.04)}
+  table{width:100%;border-collapse:collapse;margin:12px 0;font-size:14px}
+  th,td{border:1px solid var(--line);padding:9px 11px;text-align:left;vertical-align:top}
+  th{background:#eef2f8;color:var(--brand);font-weight:600}
+  tbody tr:nth-child(even){background:#fafbfd}
+  code,kbd{font-family:Consolas,"Courier New",monospace;font-size:13px;
+    background:var(--code-bg);border-radius:4px;padding:1px 6px;color:var(--accent)}
+  pre{background:#1e2330;color:#e8ecf4;border-radius:10px;padding:14px 16px;
+    overflow:auto;font-family:Consolas,monospace;font-size:13px;line-height:1.6;margin:10px 0}
+  pre .c{color:#7f8ea3}
+  .pill{display:inline-block;border-radius:20px;padding:1px 10px;font-size:12px;font-weight:600}
+  .pill.ok{background:#e3f6ea;color:var(--ok)}
+  .pill.warn{background:#fdf0dc;color:var(--warn)}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:760px){.grid{grid-template-columns:1fr}}
+  .node{border:1px solid var(--line);border-radius:10px;padding:14px;background:#fff}
+  .flow{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:10px 0}
+  .flow .step{background:#eef2f8;border:1px solid #d5deec;border-radius:8px;
+    padding:7px 12px;font-size:13px;color:var(--brand);font-weight:600}
+  .flow .arw{color:#9aa7bb;font-weight:700}
+  .note{border-left:4px solid var(--brand2);background:#f0f6fc;
+    padding:12px 16px;border-radius:0 8px 8px 0;margin:14px 0;font-size:14px}
+  .warnbox{border-left:4px solid #d69411;background:#fdf7ea;
+    padding:12px 16px;border-radius:0 8px 8px 0;margin:14px 0;font-size:14px}
+  .okbox{border-left:4px solid #2f9e63;background:#eefaf2;
+    padding:12px 16px;border-radius:0 8px 8px 0;margin:14px 0;font-size:14px}
+  ul,ol{margin:8px 0 8px 4px;padding-left:22px}
+  li{margin:5px 0}
+  .kv{color:var(--sub);font-size:13px}
+  .toc{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px 20px;margin:14px 0}
+  .toc a{color:var(--brand2);text-decoration:none}
+  .toc a:hover{text-decoration:underline}
+  .toc ol{columns:2;column-gap:30px}
+  @media(max-width:760px){.toc ol{columns:1}}
+  footer{margin-top:44px;color:var(--sub);font-size:12.5px;text-align:center;
+    border-top:1px solid var(--line);padding-top:18px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>MyDAPLink_F103 使用手册</h1>
+  <p>把一块 STM32F103C8T6 烧进两个固件，变成一台 CMSIS-DAP 烧录器 —— 从零到能用的完整步骤</p>
+  <div>
+    <span class="tag">源码：ARM 官方 DAPLink</span>
+    <span class="tag">目标接口：PB6 / PB7 / PB8 / PB9</span>
+    <span class="tag">已本机编译 · 3 个固件</span>
+  </div>
+</header>
+
+<div class="note">
+  <b>一句话：</b>烧 <code>MyDAPLink_BL.hex</code>（到 <code>0x08000000</code>）+
+  <code>MyDAPLink_IF.hex</code>（到 <code>0x0800C000</code>），
+  这块 F103 就成了一台烧录器，可以用它给别的 ARM Cortex-M 芯片烧录 / 调试。
+</div>
+
+<div class="warnbox">
+  <b>⚠️ 拿到这个包的其他人请注意</b>
+  <ul style="margin:8px 0 0 0;padding-left:20px">
+    <li>本包<strong>可搬移</strong>——整个文件夹拷到任意盘符、任意目录都能用。</li>
+    <li><code>COM3</code>（第 9 节、<code>rescue/isp_rescue.py</code>）→ 换成<strong>你电脑上 USB-TTL 实际的 COM 口</strong>。</li>
+    <li><code>E:/LEDTEST.elf</code>（在 <code>tools/verify_flash.gdb</code> 里）和第 6.1 节的 <code>&lt;目标程序.elf&gt;</code>
+        → 换成<strong>你自己目标程序</strong>的 <code>.elf</code> 路径，那是你自己的文件，不在本包里。</li>
+    <li><code>source tools/verify_flash.gdb</code>（第 6.1 节）→ 建议改成<strong>绝对路径</strong>。</li>
+    <li>需要你<strong>自己安装</strong>：<code>openocd</code>、<code>arm-none-eabi-gdb</code>，并且加入 <code>PATH</code>
+        （自检：<code>openocd --version</code> 能打印版本号）。</li>
+    <li>手册里所有 <code>out/xxx.hex</code>、<code>tools/xxx</code>、<code>rescue/xxx</code> 都是<strong>相对路径</strong>——
+        请先 <code>cd</code> 到本包根目录再执行命令，否则会报 <code>No such file or directory</code>。</li>
+    <li>只有想<strong>重新编译</strong>时才需要 <code>arm-none-eabi-gcc</code>、Python、GNU make，
+        而且必须先按 <code>README.md</code> 第 12 节把 <code>mbed-os</code> 补回来（本精简版已移除，包里不含）。</li>
+  </ul>
+</div>
+
+<div class="toc">
+  <b>目录</b>
+  <ol>
+    <li><a href="#s1">这是什么</a></li>
+    <li><a href="#s2">准备工作</a></li>
+    <li><a href="#s3">第一步：把固件烧进探针</a></li>
+    <li><a href="#s4">第二步：验证探针就绪</a></li>
+    <li><a href="#s5">第三步：接到目标板</a></li>
+    <li><a href="#s6">第四步：烧录 / 调试目标</a></li>
+    <li><a href="#s7">日常：升级与拖拽烧录</a></li>
+    <li><a href="#s8">常见问题排查</a></li>
+    <li><a href="#s9">刷坏了怎么救</a></li>
+    <li><a href="#s10">固件清单</a></li>
+    <li><a href="#s11">能烧哪些芯片 / 为什么有的 ARM 不支持</a></li>
+  </ol>
+</div>
+
+<h2 id="s1">1. 这是什么</h2>
+<div class="card">
+  <p>把一颗普通 STM32F103 变成「电脑 ⟷ 目标芯片」之间的桥：</p>
+  <div class="flow">
+    <span class="step">电脑<br><span class="kv">OpenOCD / pyOCD / Keil</span></span><span class="arw">──USB──▶</span>
+    <span class="step">探针 F103<br><span class="kv">BL + IF 固件</span></span><span class="arw">──SWD──▶</span>
+    <span class="step">目标板<br><span class="kv">任意 ARM Cortex-M</span></span>
+  </div>
+  <p>变成探针后，它通过 USB 向电脑提供：</p>
+  <table>
+    <thead><tr><th>USB 接口</th><th>用途</th></tr></thead>
+    <tbody>
+      <tr><td><b>CMSIS-DAP v2</b></td><td>调试 / 烧录主通道，给 OpenOCD、pyOCD、Keil、IAR 用</td></tr>
+      <tr><td><b>CDC（虚拟串口）</b></td><td>多出一个 COM 口，可当串口调试</td></tr>
+      <tr><td><b>MSC（大容量存储）</b></td><td>多出一个「U 盘」，拖 hex/bin 进去即烧（需 MSC 版固件）</td></tr>
+      <tr><td><b>HID</b></td><td>部分免驱场景</td></tr>
+    </tbody>
+  </table>
+  <p class="kv">向目标芯片走的是 <b>SWD</b> 协议（SWCLK + SWDIO 两根信号线）。</p>
+</div>
+
+<h2 id="s2">2. 准备工作</h2>
+<div class="card">
+  <table>
+    <thead><tr><th>物品</th><th>说明</th></tr></thead>
+    <tbody>
+      <tr><td><b>探针芯片</b></td><td>一块 STM32F103C8T6，Flash 必须 <b>128KB</b>（多数 Blue Pill 是 128KB）</td></tr>
+      <tr><td><b>ST-Link（首次用）</b></td><td>只用来第一次把固件烧进探针，烧完就不需要它了</td></tr>
+      <tr><td><b>杜邦线</b></td><td>建议短一些（&lt;15cm），SWD 对线长敏感</td></tr>
+      <tr><td><b>目标板</b></td><td>任意要调试的 ARM Cortex-M 芯片 —— 完整支持范围与限制见 <b>11</b></td></tr>
+      <tr><td><b>电脑软件</b></td><td><code>openocd</code>、<code>arm-none-eabi-gdb</code>（可选 pyOCD / Keil / IAR）</td></tr>
+    </tbody>
+  </table>
+  <div class="warnbox">
+    <b>先确认芯片是 128KB。</b> 64KB 的板子装不下固件。用 ST-Link 查：
+    <pre>st-info --probe      <span class="c"># 看 "flash:" 一行，应为 128k</span></pre>
+  </div>
+  <div class="warnbox">
+    <b>⚠️ 动手前先自检工具链。</b> 上表里的 <code>openocd</code>、<code>arm-none-eabi-gdb</code> 需要你
+    <strong>自己安装并加入 PATH</strong>；<code>st-info</code> 属于 <code>stlink-tools</code>，也要另外装。
+    在命令行敲一句 <code>openocd --version</code>，能打印出版本号才可以继续。
+  </div>
+</div>
+
+<h2 id="s3">3. 第一步：把固件烧进探针</h2>
+<div class="card">
+  <p>此刻它还只是一块<b>普通 F103</b>，必须用外部调试器（ST-Link）烧。
+  要烧 <code>out/</code> 里两个文件：<b>先 BL，后 IF</b>。</p>
+
+  <h3>3.1 接线（ST-Link → 探针芯片）</h3>
+  <table>
+    <thead><tr><th>ST-Link</th><th>探针 F103</th></tr></thead>
+    <tbody>
+      <tr><td>SWCLK</td><td>PA14</td></tr>
+      <tr><td>SWDIO</td><td>PA13</td></tr>
+      <tr><td>GND</td><td>GND</td></tr>
+      <tr><td>3.3V</td><td>3.3V</td></tr>
+    </tbody>
+  </table>
+
+  <h3>3.2 烧录（三种方式任选）</h3>
+  <div class="grid">
+    <div class="node">
+      <h3>方式 A · OpenOCD（推荐，已实测）</h3>
+      <pre># hex 自带地址，命令里不要再写地址！
+openocd -f interface/stlink.cfg \
+  -f target/stm32f1x.cfg \
+  -c "init; reset halt" \
+  -c "flash write_image erase \
+      out/MyDAPLink_BL.hex" \
+  -c "flash write_image erase \
+      out/MyDAPLink_IF.hex" \
+  -c "reset halt" \
+  -c "verify_image out/MyDAPLink_BL.hex" \
+  -c "verify_image out/MyDAPLink_IF.hex" \
+  -c "reset run; shutdown"</pre>
+      <p class="kv">成功标志：<code>wrote 48128 bytes</code> +
+      <code>wrote 80896 bytes</code> + 两行 <code>verified ... bytes</code>。</p>
+    </div>
+    <div class="node">
+      <h3>方式 B · st-flash</h3>
+      <pre># 用 .bin 时要显式给地址
+st-flash --reset write \
+  out/MyDAPLink_BL.bin 0x08000000
+st-flash --reset write \
+  out/MyDAPLink_IF.bin 0x0800C000
+
+# 或用 .hex（读内部地址，无需再给）</pre>
+    </div>
+  </div>
+
+  <div class="warnbox">
+    <b>⚠️ 先确认两件事：</b>
+    ① 下方命令里的 <code>out/MyDAPLink_BL.hex</code> 是<strong>相对路径</strong>，请在<strong>包根目录</strong>下执行，
+    或改成固件的绝对路径；
+    ② <code>-f interface/stlink.cfg</code> 是给 <strong>ST-Link</strong> 用的，若你用的是 J-Link 或别的
+    CMSIS-DAP 调试器，要换成对应的 interface 配置文件。
+  </div>
+
+  <div class="warnbox">
+    <b>⚠️ 必看的坑（已实际踩过）：</b>给 <code>.hex</code> 文件烧录时<b>千万不要再传地址</b>。
+    若写成 <code>flash write_image erase out/MyDAPLink_BL.hex 0x08000000</code>，
+    OpenOCD 会把 <code>0x08000000</code> 当成「偏移量」<b>再叠加一次</b>，地址翻倍成
+    <code>0x10000000</code>，于是报 <code>no flash bank found for address 0x10000000</code>
+    且 <code>wrote 0 bytes</code>——<b>一个字节都没写进去</b>，
+    但日志前面照样打印 <code>** Programming Finished **</code>，极易误判为成功。
+  </div>
+
+  <p><b>方式 C · STM32CubeProgrammer：</b>图形界面里依次打开 BL / IF 两个 hex，
+  确认起始地址（BL=<code>0x08000000</code>，IF=<code>0x0800C000</code>）后烧录。</p>
+
+  <div class="note">
+    <b>想要拖拽 U 盘？</b>把第二步的 <code>MyDAPLink_IF.hex</code> 换成
+    <code>MyDAPLink_IF_MSC.hex</code>（地址同样 <code>0x0800C000</code>）。两者只能选一个。
+  </div>
+
+  <h3>3.3 烧完</h3>
+  <ol>
+    <li><b>拔掉 ST-Link</b>；</li>
+    <li>把探针芯片的 USB 口插到电脑（Blue Pill 上是 PA11/PA12 那个口）；</li>
+    <li>进入下一步验证。</li>
+  </ol>
+</div>
+
+<h2 id="s4">4. 第二步：验证探针就绪</h2>
+<div class="card">
+  <p>插入 USB 后，Windows 里应多出下列设备（<code>Status</code> 全为 <code>OK</code>）：</p>
+  <pre>Get-PnpDevice -PresentOnly | Where-Object { $_.InstanceId -like '*VID_0D28*' } |
+  Format-Table Status, FriendlyName, InstanceId -AutoSize</pre>
+  <table>
+    <thead><tr><th>FriendlyName</th><th>说明</th></tr></thead>
+    <tbody>
+      <tr><td>USB Composite Device</td><td>复合设备总入口</td></tr>
+      <tr><td>CMSIS-DAP v2</td><td>调试通道 <span class="pill ok">关键</span></td></tr>
+      <tr><td>USB 串行设备 (COMx)</td><td>虚拟串口</td></tr>
+      <tr><td>USB 输入设备</td><td>HID</td></tr>
+      <tr><td>可移动磁盘</td><td>仅 MSC 版固件才有</td></tr>
+    </tbody>
+  </table>
+
+  <p>再用 OpenOCD 空连一次，确认探针活着（<b>目标板先不接</b>）：</p>
+  <pre>openocd -f interface/cmsis-dap.cfg -f target/stm32f1x.cfg -c "adapter speed 100"</pre>
+  <div class="okbox">
+    探针正常时应看到：
+    <pre>Info : CMSIS-DAP: FW Version = 2.1.0
+Info : CMSIS-DAP: Interface ready
+Info : clock speed 100 kHz</pre>
+    之后因为<b>目标板没接</b>会报 <code>cannot read IDR</code> 一类错误 ——
+    <b>这是正常的</b>，说明探针已就绪、在等目标板。按 <kbd>Ctrl+C</kbd> 退出即可。
+  </div>
+</div>
+
+<h2 id="s5">5. 第三步：接到目标板</h2>
+<div class="card">
+  <p>探针的 SWD 目标接口固定在本设计的 <b>PB6 ~ PB9</b>（连续四脚，可做一排 4P 排针整体对插）。</p>
+  <table>
+    <thead><tr><th>#</th><th>探针</th><th>目标板</th><th>作用</th><th>必接？</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td><b>PB6</b></td><td>SWCLK（STM32 上是 PA14）</td><td>时钟</td><td>✅ 必接</td></tr>
+      <tr><td>2</td><td><b>PB7</b></td><td>SWDIO（STM32 上是 PA13）</td><td>数据（单脚双向）</td><td>✅ 必接</td></tr>
+      <tr><td>3</td><td><b>GND</b></td><td>GND</td><td>共地</td><td>✅ 必接</td></tr>
+      <tr><td>4</td><td><b>PB8</b></td><td>NRST</td><td>复位</td><td>⚠️ 见下</td></tr>
+      <tr><td>5</td><td>3.3V</td><td>VCC</td><td>供电</td><td>⚠️ 见下</td></tr>
+      <tr><td>—</td><td><b>PB9</b></td><td>—</td><td>POWER_EN（可控供电）</td><td>❌ 默认不用</td></tr>
+    </tbody>
+  </table>
+  <div class="warnbox">
+    <b>① 供电：</b><code>PB9 = POWER_EN</code> 默认输出低 = <b>不向目标供电</b>。
+    目标板必须<b>自己单独上电</b>；也可以把探针 3.3V 接到目标 VCC 给它供电（注意电流够不够）。
+  </div>
+  <div class="warnbox">
+    <b>② NRST 通常不是必需的：</b>多数板接 PB6/PB7/GND 三根就能用。
+    只有个别目标板需要补上 PB8→NRST 才能进调试态。
+  </div>
+
+  <h3>SWD 速度：从 500 kHz 起，不要一上来就 1 MHz <span class="pill warn">实测坑</span></h3>
+  <p>这是本设计<b>实测踩过的最大的坑</b>，优先级最高：</p>
+  <table>
+    <thead><tr><th>SWD 速度</th><th>实测结果</th></tr></thead>
+    <tbody>
+      <tr><td>2000 / 1000 kHz</td><td>❌ <code>Failed to read memory at 0xe000ed00</code>（DP 握手成功、AP 读不到）</td></tr>
+      <tr><td>500 kHz</td><td>⚠️ 时好时坏，不可靠</td></tr>
+      <tr><td><b>250 kHz</b></td><td>✅ 稳定成功</td></tr>
+      <tr><td><b>100 kHz</b></td><td>✅ 稳定成功</td></tr>
+    </tbody>
+  </table>
+  <p><b>为什么：</b>杜邦线较长、接触电阻大、无端接时，SWD 波形在高速下会失真。
+  DP 握手只是简单一问一答、容忍度高；AP 读内存是连续多字节传输、对信号完整性要求高得多。
+  于是表现为「<b>DP 通、AP 不通</b>」—— 看着像接线或固件问题，其实是速度问题。</p>
+  <div class="okbox">
+    <b>做法：</b>OpenOCD 一律用 <code>-c "adapter speed 100"</code> 起步（最稳），
+    确认通了再往上试 250 / 500。换更短的杜邦线（&lt; 15 cm）或直接焊接排线可显著提高可用速度。
+    出现 <code>Failed to read memory</code> 时<b>先降速</b>，不要先去怀疑接线或固件。
+  </div>
+</div>
+
+<h2 id="s6">6. 第四步：烧录 / 调试目标板</h2>
+<div class="card">
+  <h3>6.1 OpenOCD + GDB（通用，推荐）</h3>
+  <p><b>终端 1 — 起 OpenOCD 服务（保持运行）：</b></p>
+  <pre>openocd -f interface/cmsis-dap.cfg -f target/stm32f1x.cfg -c "adapter speed 100"</pre>
+  <div class="okbox">
+    看到下面这两行，说明<b>目标板被真正识别</b>：
+    <pre>Info : [stm32f1x.cpu] target has 6 breakpoints, 4 watchpoints   <span class="c">← 关键</span>
+Info : [stm32f1x.cpu] Examination succeed</pre>
+    若只看到 <code>starting gdb server on 3333</code>，而前面是 <code>Examination failed</code>
+    或 <code>Failed to read memory</code> → <b>先把速度降到 100 kHz 重试</b>，仍不行再查接线。
+  </div>
+  <p><b>终端 2 — 开 GDB 并逐行敲：</b></p>
+  <pre>arm-none-eabi-gdb &lt;目标程序.elf&gt;
+
+<span class="c"># 进入 GDB 后：</span>
+target extended-remote localhost:3333
+monitor reset halt
+load                 <span class="c"># 把 elf 烧进目标 Flash</span>
+compare-sections     <span class="c"># 比对 Flash 与 elf 是否一致</span>
+continue             <span class="c"># 跑起来</span></pre>
+  <div class="note">
+    GDB 里<b>不要</b>粘贴带 <code>(gdb)</code> 前缀或 <code>#</code> 注释的行，会报
+    <code>Undefined command</code>。要么一行行敲，要么用 <code>source 脚本.gdb</code>。
+    用包内脚本：<code>(gdb) source tools/verify_flash.gdb</code>（只读自检）。
+  </div>
+  <div class="warnbox">
+    <b>⚠️ 这两处路径要换成你自己的：</b>
+    <ul style="margin:8px 0 0 0;padding-left:20px">
+      <li><code>&lt;目标程序.elf&gt;</code> —— 换成<strong>你自己</strong>要烧的目标程序，它不在本包里；路径含空格记得加引号。</li>
+      <li><code>tools/verify_flash.gdb</code> —— 这是<strong>相对路径</strong>。GDB 是按<strong>你启动 GDB 时所在的目录</strong>
+          去找它的，所以要么先 <code>cd</code> 到包根目录再启动 GDB，要么直接写绝对路径，例如
+          <code>(gdb) source D:/MyDAPLink_F103_精简版/tools/verify_flash.gdb</code>。</li>
+    </ul>
+    该脚本开头还写着作者的测试程序路径，第一次用之前建议打开文件看一眼（见文件顶部注释）。
+  </div>
+
+  <h3>6.2 pyOCD</h3>
+  <pre>pyocd list                              <span class="c"># 确认探针在内</span>
+pyocd flash -t stm32f103c8 &lt;你的.hex&gt;   <span class="c"># 烧录</span>
+pyocd commander -t stm32f103c8          <span class="c"># 进交互调试</span></pre>
+
+  <h3>6.3 Keil / IAR</h3>
+  <ul>
+    <li><b>Keil：</b><code>Options → Debug</code> 选 <b>CMSIS-DAP Debugger</b>；</li>
+    <li><b>IAR：</b><code>Project → Options → Debugger</code> 选 <b>CMSIS DAP</b>。</li>
+  </ul>
+
+  <h3>6.4 拖拽烧录（仅 MSC 版固件）</h3>
+  <ol>
+    <li>插上探针，打开多出来的「U 盘」；</li>
+    <li>把目标的 <code>.hex</code> / <code>.bin</code> <b>拖进去</b>；</li>
+    <li>探针自动烧录，完成后自动重新枚举。</li>
+  </ol>
+  <p class="kv">拖拽烧录是<b>离线</b>的——探针自己完成，不经过电脑上的工具。</p>
+  <p class="kv">为什么有的版本没有这个盘、以及怎么切换 —— 见 <b>7.4</b>。</p>
+</div>
+
+<h2 id="s7">7. 日常：升级与拖拽烧录</h2>
+<div class="card">
+  <h3>7.1 只升级 IF（最常见）</h3>
+  <p><b>BL 只烧一次</b>，之后升级只需换 IF：</p>
+  <pre># .bin 给地址；.hex 自带地址、不要给
+st-flash --reset write out/MyDAPLink_IF.bin 0x0800C000</pre>
+  <p class="kv">或：MSC 版固件下，把新 IF 的 hex 拖进虚拟 U 盘即可，不必接 ST-Link。</p>
+
+  <h3>7.2 切回 Bootloader（magic 文件）</h3>
+  <p><code>out/magic/START_BL.ACT</code> 是给 <b>MSC 版</b>用的：拖进虚拟 U 盘，
+  探针会重启进入 BL 模式，方便后续升级/恢复。它的内容就是两个字节 <code>BL</code>。</p>
+
+  <h3>7.3 Flash 布局（128KB 片）</h3>
+  <table>
+    <thead><tr><th>区域</th><th>起始地址</th><th>大小</th></tr></thead>
+    <tbody>
+      <tr><td>Bootloader (BL)</td><td><code>0x08000000</code></td><td>0xBC00 (48128 B)</td></tr>
+      <tr><td>Interface (IF)</td><td><code>0x0800C000</code></td><td>0x13C00 (80896 B)</td></tr>
+      <tr><td>Config (用户)</td><td><code>0x0801FC00</code></td><td>0x400</td></tr>
+    </tbody>
+  </table>
+
+  <h3>7.4 虚拟 U 盘（MSC）什么条件才会出现 <span class="pill warn">常被问</span></h3>
+
+  <div class="warnbox">
+    <b>一句话：不是所有 IF 固件都带虚拟盘 —— 只有「内嵌了目标 flash 算法」的那一版才会出现。</b>
+  </div>
+
+  <table>
+    <thead><tr><th>固件</th><th>对应工程</th><th>内嵌 flash 算法</th><th>有虚拟 U 盘吗</th></tr></thead>
+    <tbody>
+      <tr><td><code>MyDAPLink_IF.hex</code></td><td><code>stm32f103xb_if</code></td>
+          <td>❌ 无（all-family）</td><td><b>没有</b></td></tr>
+      <tr><td><code>MyDAPLink_IF_MSC.hex</code></td><td><code>stm32f103xb_stm32f103rb_if</code></td>
+          <td>✅ 有（STM32F103）</td><td><b>有</b></td></tr>
+    </tbody>
+  </table>
+
+  <p><b>为什么：</b>DAPLink 官方文档 <code>docs/USERS-GUIDE.md</code> 写明，MSD / 拖拽功能是
+  「构建里包含目标 flash 算法」时<b>自动启用</b>的；那些 all-family 构建本身没有绑定具体目标，
+  就<b>不带 MSD 盘</b> —— 它仍然能用 CMSIS-DAP 协议给任意芯片烧录 / 调试，只是没有那个拖拽盘。</p>
+
+  <p>对照本包两个工程的声明（<code>src/upstream/projects.yaml</code>）：</p>
+  <pre>stm32f103xb_if:                       <span class="c"># → MyDAPLink_IF.hex</span>
+    - *module_if
+    - records/family/all_family.yaml  <span class="c"># 只有各家 target_reset_*.c，无 flash 算法</span>
+    - records/usb/usb-bulk.yaml
+
+stm32f103xb_stm32f103rb_if:           <span class="c"># → MyDAPLink_IF_MSC.hex</span>
+    - *module_if
+    - records/board/stm32f103rb.yaml  <span class="c"># → 引入 stm32f103rb 的 flash 算法</span></pre>
+
+  <ul>
+    <li><code>records/family/all_family.yaml</code> 里只有各家的 <code>target_reset_*.c</code>
+        （复位辅助代码），<b>一条 flash 算法都没有</b>；</li>
+    <li><code>source/family/st/stm32f103rb/target.c</code> 里有
+        <code>.flash_regions[0].flash_algo = (program_target_t *)&amp;flash;</code>
+        （配 <code>flash_blob.c</code>），<b>内嵌了 STM32F103 的烧录算法</b> → MSD 自动挂出。</li>
+  </ul>
+
+  <div class="note">
+    <b>不是「通用版把 MSC 代码裁掉了」。</b>两个 IF 版本<b>都</b>编了 MSC 的 USB 端点
+    （<code>module_if</code> 里本身就含 <code>records/usb/usb-msc.yaml</code>，定义
+    <code>MSC_ENDPOINT</code> → <code>USBD_MSC_ENABLE=1</code>），差别只在
+    「有没有内嵌目标 flash 算法」这一条。
+  </div>
+
+  <p><b>容量：</b>两版 IF 的 <code>.bin</code> 都是 80896 B（占用同一块 ROM 区 <code>0x0800C000</code>），
+  <b>虚拟盘不额外占 Flash</b>；128 KB 的片放得下（BL + IF ≈ 123 KB）。</p>
+
+  <p><b>怎么切换：</b>若当前芯片里是通用版 IF，想有虚拟盘 —— 用 ST-Link 把 IF 区擦掉重烧 MSC 版
+  （<b>BL 不用动</b>）：</p>
+  <pre>openocd -f interface/stlink.cfg -f target/stm32f1x.cfg \
+  -c "init; reset halt" \
+  -c "flash write_image erase out/MyDAPLink_IF_MSC.hex" \
+  -c "reset run; shutdown"</pre>
+
+  <p><b>拖进去的文件分别是什么：</b></p>
+  <table>
+    <thead><tr><th>拖入的文件</th><th>效果</th></tr></thead>
+    <tbody>
+      <tr><td>目标的 <code>.hex</code> / <code>.bin</code></td>
+          <td>烧到<b>目标芯片</b>（不是探针自己）；成功变成完成页面，失败生成 <code>FAIL.TXT</code></td></tr>
+      <tr><td><code>out/magic/START_BL.ACT</code></td>
+          <td>探针<b>自己</b>重启进 BL，等待升级 IF</td></tr>
+      <tr><td><code>msd_off.act</code> / <code>msd_on.act</code></td><td>关掉 / 开回虚拟盘</td></tr>
+      <tr><td><code>page_on.act</code> / <code>page_off.act</code></td><td>临时允许页编程+扇区擦除 / 恢复</td></tr>
+    </tbody>
+  </table>
+  <p class="kv"><code>.act</code> 命令全集见官方 <code>docs/MSD_COMMANDS.md</code>。</p>
+
+  <div class="warnbox">
+    <b>限制：</b>虚拟盘<b>只认它内嵌算法的那个目标系列</b>（本包这版是 STM32F103）。
+    要烧别的芯片（Nordic、Freescale 等），请走 <b>CMSIS-DAP 调试口</b>（OpenOCD / pyOCD）——
+    那是通用协议，芯片无关，任何 ARM Cortex-M 都能烧。
+    完整的支持范围、以及「为什么有的 ARM 不支持」，见 <b>11</b>。
+  </div>
+
+  <h3>7.5 什么时候还需要 ST-Link？ <span class="pill warn">常被问</span></h3>
+  <p>把「烧录」分成四种，答案完全不一样：</p>
+  <table>
+    <thead><tr><th>你要烧的东西</th><th>需要外部调试器吗</th><th>怎么做</th></tr></thead>
+    <tbody>
+      <tr><td><b>目标板固件</b>（LEDTEST 之类）</td><td>❌ 不需要</td>
+          <td>探针的 CMSIS-DAP 口（OpenOCD / pyOCD），或 MSC 版拖拽虚拟盘</td></tr>
+      <tr><td><b>探针的 IF</b>（当前 IF 带虚拟盘）</td><td>❌ 不需要</td>
+          <td>拖 <code>START_BL.ACT</code> 进 <code>DAPLINK</code> 盘 → 变 <code>MAINTENANCE</code> 维护盘 → 拖新 IF hex</td></tr>
+      <tr><td><b>探针的 IF</b>（当前 IF 不带虚拟盘，如通用版）</td><td>✅ 需要</td>
+          <td>外部调试器（或另一块 DAPLink）</td></tr>
+      <tr><td><b>探针的 BL</b>（首刷 / 换 BL / 救砖）</td><td>✅ 需要</td>
+          <td>外部调试器；最坏还有串口 ISP（见 <b>9</b>）</td></tr>
+    </tbody>
+  </table>
+  <div class="note">
+    <b>一句话：</b>日常迭代（改时钟、改引脚、换 target 工程 → 重编 IF）已经可以彻底拔掉 ST-Link；
+    只有动 BL、或者 IF 卡死到挂不出盘，才需要它。
+  </div>
+
+  <p><b>为什么维护盘救不了 BL</b> —— 三条源码级硬证据：</p>
+  <ol>
+    <li><b>维护盘只映射 IF 那一段。</b><code>source/board/stm32f103xb_bl.c:42-43</code>：
+<pre>.flash_regions[0].start = 0x08000000 + KB(48),    // 0x0800C000
+.flash_regions[0].end   = 0x08000000 + KB(128),   // 0x08020000</pre>
+      BL 自己那 48 KB（<code>0x08000000–0x0800C000</code>）<b>根本不在维护盘映射的地址范围里</b>。</li>
+    <li><b>官方的「BL 自更新」机制本构建没启用。</b><code>bootloader_update.c:39-41</code>：
+<pre>#if !defined(DAPLINK_BOOTLOADER_UPDATE)
+    #define DAPLINK_BOOTLOADER_UPDATE  0
+#endif</pre>
+      该宏<b>全树只有这一处出现</b>，没有任何工程定义它 → 内嵌镜像 <code>image_size = 0</code>，
+      <code>bootloader_check_and_update()</code> 退化成空操作。</li>
+    <li><b>就算启用了也没地方放。</b>BL 镜像 48128 B，而 IF 区只有 <code>0x13C00 = 80896 B</code>，
+      实测占用 <code>text 61952 + data 18944 = 80896 B</code> —— <b>恰好占满、零余量</b>，
+      塞不进 48 KB 的 BL。</li>
+  </ol>
+
+  <p><b>那「不用 ST-Link」的边界在哪？</b>关键在于有没有办法让探针停在维护盘。
+  BL 的跳出条件（<code>main_bootloader.c:275-278</code>）是<b>四个条件全真</b>才跳进 IF：</p>
+<pre>if (!reset_button_pressed()                         // 本板无专用复位键，恒为 false
+        &amp;&amp; g_board_info.target_cfg
+        &amp;&amp; validate_bin_nvic(IF 起始地址)            // IF 的向量表有效…
+        &amp;&amp; !config_ram_get_initial_hold_in_bl()) {  // …且没有被要求「停在 BL」
+    /* 跳进 IF */
+}
+/* 否则留在 BL，挂出 MAINTENANCE 盘 */</pre>
+
+  <p>于是只有三种局面：</p>
+  <table>
+    <thead><tr><th>局面</th><th>能进维护盘吗</th><th>结果</th></tr></thead>
+    <tbody>
+      <tr><td>IF 正常，且带虚拟盘</td><td>✅</td><td>拖 <code>START_BL.ACT</code> 置 hold-in-bl 标志 → 重启停在维护盘</td></tr>
+      <tr><td>IF 被擦掉 / 向量表非法</td><td>✅</td><td>重启<b>自动</b>停在维护盘 —— <b>IF 刷坏也能自救</b></td></tr>
+      <tr><td>IF 能跳转但卡死在 USB 初始化前</td><td>❌</td><td>既没有盘、又进不了维护盘 → 只能上外部调试器</td></tr>
+    </tbody>
+  </table>
+  <div class="warnbox">
+    <b>第三行最容易踩：</b>引脚配错、时钟配错导致 IF 跑飞时，虚拟盘根本不会出现，
+    这时维护盘也帮不了你。好在 USB 没起来的 IF 一般也不会破坏 BL。
+  </div>
+
+  <p><b>而且「外部调试器」不必非是 ST-Link。</b>任何能当 SWD 主机的都行 ——
+  <b>第二块 DAPLink 探针</b>最顺手（正好是「用 DAPLink 修 DAPLink」）：
+  接本探针的 <code>PB6(SWCLK) / PB7(SWDIO) / PB8(nRESET) / GND</code>，OpenOCD 换成
+  <code>-f interface/cmsis-dap.cfg</code> 即可。这条路一直通，是因为 <code>gpio.c</code> 里特意用了
+  <code>__HAL_AFIO_REMAP_SWJ_NOJTAG()</code> 保留探针芯片自己的 SWD 口
+  （官方默认 <code>SWJ_DISABLE</code> 会把探针自己的 PA13/PA14 关掉，那才真的会变砖）。
+  最坏的情况还有<b>串口 ISP</b>（BOOT0=1 + PA9/PA10），见 <b>9</b>。</p>
+</div>
+
+<h2 id="s8">8. 常见问题排查</h2>
+<div class="card">
+  <table>
+    <thead><tr><th>现象</th><th>原因 / 解决</th></tr></thead>
+    <tbody>
+      <tr><td><code>cannot read IDR</code></td><td>DP 层都不通。① 目标板没上电；② SWDIO(PB7) 接触不良/接反；③ SWCLK/SWDIO 接反。重插、换短线、确认 PB6→SWCLK、PB7→SWDIO</td></tr>
+      <tr><td><code>Failed to read memory at 0xe000ed00</code></td><td>DP 通、AP 不通。<b>按顺序查：① 把 SWD 速度降到 100~250 kHz（最常见）；② 接上 PB8→NRST；③ 另有调试器占着同一 SWD 线（拔掉 ST-Link）；④ 目标板供电不足</b></td></tr>
+      <tr><td><code>cmd_info failed</code></td><td>探针 USB 掉了。重插探针 USB</td></tr>
+      <tr><td>插上探针没反应</td><td>只烧了 BL 没烧 IF；或地址烧错（BL=0x08000000，IF=0x0800C000）；或没插 PA11/PA12 那个 USB 口</td></tr>
+      <tr><td>没有虚拟 U 盘</td><td>烧的是通用版 IF。<b>原理与切换方法见 7.4</b>；想要 U 盘请烧 <code>MyDAPLink_IF_MSC.hex</code></td></tr>
+      <tr><td>虚拟串口没 COM 号</td><td>装 CMSIS-DAP 驱动 / 换 USB 口</td></tr>
+      <tr><td>GDB <code>errno 10061</code></td><td>OpenOCD 没在跑。先起 OpenOCD，再连 GDB</td></tr>
+      <tr><td>GDB <code>Target not examined yet</code></td><td>目标板没被识别（同 <code>Failed to read memory</code> 那一行的原因）</td></tr>
+    </tbody>
+  </table>
+  <div class="note">
+    <b>排查口诀：</b>先分「探针自己的问题」还是「目标板的问题」—— 探针看 USB 设备是否
+    <code>OK</code>，目标板看 OpenOCD 有没有 <code>Examination succeed</code> 那行。
+    <b>顺序很重要</b>：遇到连不上，<b>先降速到 100 kHz 再试一次</b>，再去看接线 ——
+    本设计实测「1000 kHz 必挂、100 kHz 必通」，降速常常一步解决。
+  </div>
+</div>
+
+<h2 id="s9">9. 刷坏了怎么救（串口 ISP）</h2>
+<div class="card">
+  <p>探针固件若刷坏导致 <b>SWD 被关</b>，用 F103 芯片内建的<b>系统 Bootloader（串口 ISP，AN3155）</b>救：</p>
+  <ol>
+    <li><b>BOOT0 接高、BOOT1 接低</b>，然后复位；</li>
+    <li>USB-TTL 接线：<b>TX→PA10</b>、<b>RX→PA9</b>、GND 共地（注意收发交叉）；</li>
+    <li>烧回 BL：
+      <pre>python rescue/isp_rescue.py out/MyDAPLink_BL.bin COM3</pre>
+      ⚠️ 末尾的 <code>COM3</code> 要换成<strong>你自己电脑上 USB-TTL 的 COM 口</strong>
+      （设备管理器 →「端口 (COM 和 LPT)」或命令行 <code>mode</code> 查看）；
+      <code>out/MyDAPLink_BL.bin</code> 是<strong>相对路径</strong>，请在包根目录下执行。
+      脚本依赖 <code>pyserial</code>（<code>pip install pyserial</code>）。
+    </li>
+    <li><b>BOOT0 接回 GND</b>，重新上电，再按第 3 节补烧 IF。</li>
+  </ol>
+  <div class="warnbox">
+    串口参数必须是 <b>115200, 8E1（偶校验）</b>——这是 STM32 ISP 的固定要求，脚本已内置；
+    用别的工具时也别改成 8N1。
+  </div>
+</div>
+
+<h2 id="s10">10. 固件清单与校验值</h2>
+<div class="card">
+  <p><code>out/</code> 里三个固件均为本机编译产出：</p>
+  <table>
+    <thead><tr><th>固件</th><th>烧录地址</th><th>地址范围</th><th>大小</th><th>区域 CRC32</th></tr></thead>
+    <tbody>
+      <tr><td><code>MyDAPLink_BL.hex</code></td><td>0x08000000</td><td>0x08000000–0x0800BBFF</td><td>48128 B</td><td><b>0x3E08754F</b></td></tr>
+      <tr><td><code>MyDAPLink_IF.hex</code></td><td>0x0800C000</td><td>0x0800C000–0x0801FBFF</td><td>80896 B</td><td><b>0x9115E7D9</b></td></tr>
+      <tr><td><code>MyDAPLink_IF_MSC.hex</code></td><td>0x0800C000</td><td>0x0800C000–0x0801FBFF</td><td>80896 B</td><td><b>0xC805F60C</b></td></tr>
+    </tbody>
+  </table>
+  <p class="kv"><code>MyDAPLink_IF</code> 与 <code>MyDAPLink_IF_MSC</code> <b>二选一</b>：前者通用（无虚拟盘），
+  后者带<b>虚拟 U 盘</b>。为什么、以及怎么切换 —— 见 <b>7.4</b>。</p>
+  <p class="kv">固件内嵌的 <b>Build ID</b> 为 <code>mydaplink-v1.0-g9064ad6</code>（本版），由
+  <code>src/upstream</code> 的 git tag 生成，重编译会随你自己的 tag / commit 变化；
+  在虚拟 U 盘的 <code>details.txt</code> 里能看到这一行。</p>
+  <p class="kv">自己核对某个 hex（看地址范围 / 向量表 / CRC）：</p>
+  <pre>python tools/hex_inspect.py out/MyDAPLink_BL.hex out/MyDAPLink_IF.hex</pre>
+  <p class="kv">⚠️ 这两处都是<strong>相对路径</strong>，请在<strong>包根目录</strong>下执行。只需系统里有 Python 3，
+  <strong>不需要装任何第三方库</strong>。</p>
+  <p class="kv">
+    <span class="pill ok">地址范围吻合</span>
+    <span class="pill ok">向量表合法</span>
+    <span class="pill ok">已上板验证</span>
+    <span class="pill ok">实际烧录 LEDTEST 通过</span>
+  </p>
+</div>
+
+<h2 id="s11">11. 它能烧哪些芯片？为什么有的 ARM 不支持</h2>
+<div class="card">
+  <div class="note">
+    <b>核心认知：</b>DAPLink 固件本身<b>「不认识」任何芯片</b> —— 它只做一件事：把上位机
+    （OpenOCD / pyOCD / Keil）发来的 SWD / JTAG 数据包搬到目标的调试口。
+    所以「能烧什么」不是探针单方面决定的。
+  </div>
+
+  <h3>11.1 三条使用路径，覆盖范围完全不同</h3>
+  <table>
+    <thead><tr><th>使用方式</th><th>谁决定「能烧什么」</th><th>覆盖范围</th></tr></thead>
+    <tbody>
+      <tr><td><b>CMSIS-DAP 探针</b><br><span class="kv">OpenOCD / pyOCD / Keil / IAR</span></td>
+          <td>上位机的器件库</td>
+          <td><b>几乎任何带 SWD / JTAG 的 ARM 芯片</b></td></tr>
+      <tr><td><b>拖拽 U 盘（MSC）</b></td>
+          <td>固件里<b>内嵌的那一份</b> flash 算法</td>
+          <td><b>只有 STM32F103</b>（原理见 7.4）</td></tr>
+      <tr><td><b>重新编译 IF</b></td>
+          <td>换掉内嵌算法</td>
+          <td>本包已预置 10 种目标（见 11.5）</td></tr>
+    </tbody>
+  </table>
+
+  <h3>11.2 原生支持的系列</h3>
+  <table>
+    <thead><tr><th>档位</th><th>内核</th><th>典型芯片</th></tr></thead>
+    <tbody>
+      <tr><td><b>原生支持</b><br><span class="kv">SWD 直连</span></td>
+          <td>Cortex-M0 / M0+</td><td>STM32F0·G0·L0、GD32E23x、nRF51、RP2040</td></tr>
+      <tr><td></td><td>Cortex-M3</td><td>STM32F1·F2·L1、GD32F1·F3、LPC17xx、Kinetis K</td></tr>
+      <tr><td></td><td>Cortex-M4</td><td>STM32F3·F4·L4·G4、GD32F4、nRF52、SAM D5x</td></tr>
+      <tr><td></td><td>Cortex-M7</td><td>STM32F7·H7、i.MX RT、SAM V7x / S7x</td></tr>
+      <tr><td></td><td>Cortex-M23 / M33<br><span class="kv">含 TrustZone</span></td>
+          <td>STM32L5·U5、nRF91、RA4、M2351</td></tr>
+      <tr><td></td><td>Cortex-M35P / M55 / M85</td><td>STM32N6、Alif Ensemble</td></tr>
+      <tr><td><b>有条件支持</b></td>
+          <td>Cortex-R4 / R5 / R7 / R8</td>
+          <td>TMS570 等 —— 有 CoreSight，多走 JTAG，OpenOCD 支持部分型号</td></tr>
+      <tr><td></td><td>Cortex-A5 / A7 / A9 / A53…</td>
+          <td>有 CoreSight，但多核选核 + MMU，pyOCD 不支持、OpenOCD 覆盖有限</td></tr>
+      <tr><td><b>不支持</b></td>
+          <td>ARM7TDMI / ARM9 / ARM11</td>
+          <td>LPC21xx、AT91SAM7 / 9、S3C2440（原因见 11.3 ①）</td></tr>
+      <tr><td></td><td>非 ARM</td>
+          <td>AVR、8051、PIC、MSP430、RISC-V、PowerPC（MPC57xx）</td></tr>
+    </tbody>
+  </table>
+
+  <h3>11.3 为什么有的 ARM 不支持：三道门</h3>
+  <pre>目标芯片
+  │
+  ├─ ① 有 CoreSight DAP 吗？ ──否──▶ ✗ 用不了（ARM7 / 9 / 11）
+  │         │ 是
+  ├─ ② 调试口没被锁死吗？ ────否──▶ ✗ 用不了（引脚熔断 / RDP Level 2）
+  │         │ 是
+  ├─ ③ 上位机有器件配置吗？ ──否──▶ △ 能调试，但不能烧 flash
+  │         │ 是
+  └────────▶ ✅ 烧录 + 调试都行</pre>
+
+  <p><b>① 没有 CoreSight DAP —— 最根本的分水岭</b></p>
+  <p>Cortex 全系（M / R / A）内核对自带 CoreSight 调试访问端口，SWD 和 JTAG-DP 都从这个
+  「总入口」进出，所以一条线就能通吃。</p>
+  <p>而 ARM7TDMI / ARM9 / ARM11（ARMv4 / v5 / v6 那一代）<b>那时还没有 CoreSight</b>：
+  它们要接进 CoreSight 系统，必须额外挂一颗 <code>ARMJTAG-DP</code> 再加一个
+  <b>JTAG-AP（JTAG Access Port）</b>—— 也就是说，它们不是「带 DAP 的核」，
+  而是「挂在 DAP 后面的一串 JTAG 端口」。DAPLink 只实现了常规的 DPACC / APACC 路径
+  （AHB-AP / APB-AP），既没做 JTAG-AP 的扫描链，也没有 SWD 通道。</p>
+  <div class="warnbox">一句话：<b>「是 ARM 内核」≠「有 CoreSight」</b>。</div>
+
+  <p><b>② 调试口被锁死 —— 芯片自己的状态</b></p>
+  <ul>
+    <li>SWD 引脚被复用成普通 GPIO，或出厂就熔断（部分低成本 MCU 会这么干）；</li>
+    <li>烧到了 <b>RDP（读保护）Level 2</b> → 永久锁死，DP 直接拒绝访问；</li>
+    <li>芯片处于 secure 生命周期状态（Secure Debug 未解锁）。</li>
+  </ul>
+  <p>这类情况探针再通用也连不上，<b>不是烧录器的问题</b>。</p>
+
+  <p><b>③ 上位机没有这颗芯片的器件配置 —— 最常被误判成「不支持」</b></p>
+  <div class="note">
+    DAPLink 官方说明（daplink.io）：如果你的 IDE 里找不到要调的器件，
+    你<b>仍然可以调试</b>（选对 ARM CPU 架构即可），<b>但不能烧写 flash</b>。
+  </div>
+  <p>因为「烧 flash」需要三样东西，全都写在上位机的 target 配置里
+  （OpenOCD 的 <code>target/xxx.cfg</code>、pyOCD 的 pack）：</p>
+  <table>
+    <thead><tr><th>需要什么</th><th>作用</th></tr></thead>
+    <tbody>
+      <tr><td>memory map</td><td>哪段地址是 flash、多大</td></tr>
+      <tr><td>flash 算法</td><td>怎么擦、怎么编程、页大小多少</td></tr>
+      <tr><td>复位策略</td><td>用软复位还是硬复位</td></tr>
+    </tbody>
+  </table>
+  <p>所以新出的或小众的芯片，常见情况是「探针连得上、就是没人写算法」——
+  <b>这一档不是不能用，是能力受限</b>：调试、读内存、跑 GDB 都行，只是写不进 flash。</p>
+
+  <h3>11.4 怎么自己判断一颗芯片能不能烧</h3>
+  <ol>
+    <li><b>看内核</b>：是 Cortex-M 吗？是 → 基本能烧（再看第 2、3 步）。</li>
+    <li><b>查上位机</b>：<code>openocd</code> 的 <code>scripts/target/</code> 下有没有对应的
+        <code>.cfg</code>？有 → 直接能用。</li>
+    <li><b>都没有</b>：退一步，只要它是 Cortex-M，先按 ARM CPU 架构连上去<b>调试</b>是可行的；
+        想烧 flash，需要自己补一份 target 配置 + flash 算法，或改用厂商官方工具。</li>
+  </ol>
+  <div class="okbox">
+    <b>举例（Infineon Traveo II <code>CYT4BB</code>，汽车 MCU）：</b>
+    内核是 2× Cortex-M7 + 1× Cortex-M0+，
+    <ul style="margin:8px 0 0 0;padding-left:20px">
+      <li>① 有 CoreSight ✅</li>
+      <li>② 数据手册写明 "Flash programming through SWD/JTAG interface"，调试口开放 ✅</li>
+      <li>③ Infineon 在 ModusToolbox 里提供了 OpenOCD 的 <code>infineon/cytxbb.cfg</code>
+          与 CMSIS-FLM 算法 ✅</li>
+    </ul>
+    → <b>结论：能用</b>，把 interface 换成 <code>cmsis-dap.cfg</code> 即可。
+    注意它是<b>三核</b>，调试时要选核。
+    <br>反过来说，这颗芯片恰恰证明：<b>支不支持跟品牌、跟车规无关，只看内核与协议</b>。
+  </div>
+
+  <h3>11.5 关于拖拽 U 盘的特殊说明</h3>
+  <ul>
+    <li>U 盘<b>只认固件里内嵌的那一个目标系列</b>（本包 = STM32F103）。</li>
+    <li>想让 U 盘支持别的芯片，只能<b>重新编译 IF</b>（见 <code>README.md</code> 第 12 节），
+        换上那个芯片的 flash 算法 —— <b>探针硬件不用动</b>。</li>
+    <li>本包源码里已经准备好 10 个目标工程（<code>src/upstream/projects.yaml</code>）：</li>
+  </ul>
+  <table>
+    <thead><tr><th>工程名</th><th>目标芯片</th></tr></thead>
+    <tbody>
+      <tr><td><code>stm32f103xb_stm32f072rb_if</code></td><td>STM32F072RB</td></tr>
+      <tr><td><code>stm32f103xb_stm32f103rb_if</code></td><td>STM32F103RB（= 本包 <code>MyDAPLink_IF_MSC.hex</code>）</td></tr>
+      <tr><td><code>stm32f103xb_stm32f207zg_if</code></td><td>STM32F207ZG</td></tr>
+      <tr><td><code>stm32f103xb_stm32f334r8_if</code></td><td>STM32F334R8</td></tr>
+      <tr><td><code>stm32f103xb_stm32f401re_if</code></td><td>STM32F401RE</td></tr>
+      <tr><td><code>stm32f103xb_stm32f411re_if</code></td><td>STM32F411RE</td></tr>
+      <tr><td><code>stm32f103xb_stm32f429zi_if</code></td><td>STM32F429ZI</td></tr>
+      <tr><td><code>stm32f103xb_stm32f746zg_if</code></td><td>STM32F746ZG</td></tr>
+      <tr><td><code>stm32f103xb_stm32l476rg_if</code></td><td>STM32L476RG</td></tr>
+      <tr><td><code>stm32f103xb_ublox_evk_odin_w2_if</code></td><td>u-blox EVK-ODIN-W2</td></tr>
+    </tbody>
+  </table>
+  <pre>./build.sh stm32f103xb_stm32f401re_if   <span class="c"># 举例：编出支持 F401RE 拖拽烧录的 IF</span></pre>
+  <div class="warnbox">
+    <b>实测口径：</b>本包<b>实测通过的只有 STM32F103</b>（烧录 LEDTEST + <code>compare-sections</code>
+    6 段全 match）。上面表格里的其他系列属于<b>协议架构决定的能力范围</b>，不是逐颗芯片验证过的清单。
+    真要烧某颗芯片前，先确认 <code>openocd</code> 里有没有它的 <code>.cfg</code>。
+  </div>
+</div>
+
+<footer>
+  MyDAPLink_F103 使用手册 · 基于 ARM 官方 DAPLink 源码独立构建 · Apache-2.0<br>
+  更多细节见包内 <code>README.md</code>、<code>doc/BUILD_REPORT.md</code>、<code>doc/DESIGN.md</code>
+</footer>
+
+</div>
+</body>
+</html>
